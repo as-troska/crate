@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="http://www.myersdaily.org/joseph/javascript/md5.js">
+        //Jeg trenger denne for å lage api-signaturen
+    </script>
+</head>
+
+<body>
+
+
+    <script>
+        //Sig = QmnEYKMVrlO_wQ9qmsWPUv2OvwH99aIV
+
+        //Henter token i cookien
+        const apiKey = "6a0296d8e36f28cd1969941ddd1d0034";
+        const apiRoot = " http://ws.audioscrobbler.com/2.0/?";
+        const secret = "d195107bcfea018f153bcebffc97f633";
+
+        let parameterer = new URLSearchParams(window.location.search);
+        let token = parameterer.get("token");
+
+        if (token === null || token === "undefined") {
+            getToken()
+        }
+
+        function getToken() {          
+                window.location.href =
+                    "http://www.last.fm/api/auth/?api_key=" + apiKey +
+                    "&cb=http://www.sneås.no/discogs/scrobbler.html";
+        }
+
+
+        //api_key1af32eb7b82ddba0319c1280778b7172methodauth.getSessionSAlRPBVjD8a1d3IhajIQCemXq6DzEkq50b05d33b4c73d8c07a975f89e2fd78d
+
+        function getSig() {
+            let sigString = "api_key" + apiKey + "methodauth.getSessiontoken" + token + secret;
+            console.log(sigString);
+            let apiSig = md5(sigString);
+
+
+            fetchUrl = apiRoot + "method=auth.getSession&token=" + token + "&api_key=" + apiKey + "&api_sig=" + apiSig;
+            console.log(fetchUrl);
+
+            //Kjør denne urlen og du får en signaturtoken med uendelig levetid for appen...
+
+
+            // fetch(fetchUrl, {
+            //     mode: "no-cors"
+            // }).then(response => response.text())
+            // .then((response) => {
+            //     console.log(response)
+            // } )
+        }
+
+
+
+
+        function skrivKake(kakeNavn, kakeVerdi, min) {
+            var now = new Date();
+            now.setTime(now.getTime() + (min * 60 * 1000));
+            document.cookie = kakeNavn + "=" + kakeVerdi + ";";
+            document.cookie = "expires=" + now.toUTCString() + ";";
+        }
+
+        function getCookie(kakeNavn) {
+            var navn = kakeNavn + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        }
+    </script>
+
+</body>
+
+</html>

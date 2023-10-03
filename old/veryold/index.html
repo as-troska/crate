@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <script>
+        var side1 = {}
+        
+        fetch('https://api.discogs.com/users/trondss/collection/folders/1/releases?token=UvppYajJFJzcuZwhDvqITldYtiPQdZCbCsGtGJyV')
+            .then(response => response.json())
+            .then(data => side1 = data);
+    </script>
+
+</body>
+
+</html>
