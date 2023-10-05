@@ -4,6 +4,85 @@ require('dotenv').config()
 const appid = process.env.DISCOGSAPPID;
 const appSecret = process.env.DISCOGSAPPSECRET;
 
+// Functions for getting data from Discogs API
+
+async function getIdentity(req, res) {
+    const currentTokens = db.prepare("SELECT * FROM app WHERE id = ?").get(1);
+    const authString = `OAuth oauth_consumer_key="${appid}", oauth_nonce="${getNonce()}", oauth_token="${currentTokens.oauthToken}", oauth_signature="${appSecret}&${currentTokens.oauthTokenSecret}", oauth_signature_method="PLAINTEXT", oauth_timestamp="${getTimeStamp()}"`
+
+    const response = await fetch("https://api.discogs.com/oauth/identity", {
+        method: "GET",
+        headers: {
+            'Content-Type': "application/x-www-form-urlencoded",
+            'Authorization': authString,
+            'User_Agent': "Mozilla/5.0"
+        }
+    })
+    const data = await response.json()
+    
+    const username = data.username;
+    const userid = data.id;
+    const profile = data.resource_url;
+
+    return {
+        username: username, 
+        userid: userid, 
+        profile: profile
+    }
+}
+
+async function getCollection(req, res) {
+    const identity = await getIdentity();    
+
+    const currentTokens = db.prepare("SELECT * FROM app WHERE id = ?").get(1);
+    const authString = `OAuth oauth_consumer_key="${appid}", oauth_nonce="${getNonce()}", oauth_token="${currentTokens.oauthToken}", oauth_signature="${appSecret}&${currentTokens.oauthTokenSecret}", oauth_signature_method="PLAINTEXT", oauth_timestamp="${getTimeStamp()}"`
+
+    const response = await fetch("https://api.discogs.com/users/" + identity.username +"/collection/folders/0/releases?per_page=100", {
+        method: "GET",
+        headers: {
+            'Content-Type': "application/x-www-form-urlencoded",
+            'Authorization': authString,
+            'User_Agent': "Mozilla/5.0"
+        }
+    })
+    const data = await response.json()
+
+    const collection = {
+        username: identity.username,
+        userid: identity.userid,
+        releases: [],
+        items: data.pagination.items,        
+        pages: data.pagination.pages
+    }
+    
+    for (let release of data.releases) { 
+        collection.releases.push(release)
+    }
+
+    for (let page = 2; page <= data.pagination.pages; page++) {
+        const response = await fetch("https://api.discogs.com/users/" + identity.username +"/collection/folders/0/releases?per_page=100&page=" + page, {
+            method: "GET",
+            headers: {
+                'Content-Type': "application/x-www-form-urlencoded",
+                'Authorization': authString,
+                'User_Agent': "Mozilla/5.0"
+            }
+        })
+        const data = await response.json()
+
+        for (let release of data.releases) { 
+            collection.releases.push(release)
+        }
+    }
+
+    console.log(collection.releases.length)
+
+    res.send(collection)
+}
+
+
+// Functions and routes for authentication with Discogs API
+
 async function getAppTokens(req, res) {
     const response = await fetch("https://api.discogs.com/oauth/request_token", {
         method: "GET",
@@ -98,4 +177,5 @@ getAppTokens()
 exports.getAppTokens = getAppTokens;
 exports.hasAppTokens = hasAppTokens;
 exports.captureVerifier = captureVerifier;
-
+exports.getCollection = getCollection;
+exports.getIdentity = getIdentity;

@@ -18,6 +18,8 @@ app.get("/authorize", discogs.captureVerifier)
 app.get("/getKey", lastfm.giveKey)
 app.get("/authLastFM", lastfm.authorize)
 app.get("/checkLastFMAuthorized", lastfm.checkLastFmAuthorized)
+app.get("/getCollection", discogs.getCollection)
+app.get("/getIdentity", discogs.getIdentity)
 
 
 app.listen(port, () => {

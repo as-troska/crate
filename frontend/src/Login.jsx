@@ -76,7 +76,7 @@ function Authorize() {
                 <p>Discogs Authorized!</p>
             }
 
-            {tokenState === "unauthorized" &&
+            {lastFMState === "unauthorized" &&
                 <p><a href={`${lastfmAuthUrl}`}>Authorize Last.FM</a></p>
             }
 
