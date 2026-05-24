@@ -44,11 +44,17 @@ async function authorize(req, res) {
 
     if (!token) return res.status(400).send("No Last.fm token provided");
 
-    const sig = makeSignature({ api_key: apiKey, method: "auth.getSession", token });
+    const sigParams = { api_key: apiKey, method: "auth.getSession", token };
+    const sigStr = Object.keys(sigParams).sort().map(k => k + sigParams[k]).join("") + secret;
+    console.log("[lastfm] token:", token);
+    console.log("[lastfm] apiKey length:", apiKey?.length, "secret length:", secret?.length);
+    console.log("[lastfm] sig string (no secret):", Object.keys(sigParams).sort().map(k => k + sigParams[k]).join(""));
+    const sig = makeSignature(sigParams);
     const url = `http://ws.audioscrobbler.com/2.0/?method=auth.getSession&token=${token}&api_key=${apiKey}&api_sig=${sig}`;
 
     const result = await fetch(url);
     const text = await result.text();
+    console.log("[lastfm] auth.getSession response:", text);
 
     const key = text.split("<key>")[1]?.split("</key>")[0];
     if (!key) {
