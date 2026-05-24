@@ -48,8 +48,10 @@ async function authorize(req, res) {
     const sigStr = Object.keys(sigParams).sort().map(k => k + sigParams[k]).join("") + secret;
     console.log("[lastfm] token:", token);
     console.log("[lastfm] apiKey length:", apiKey?.length, "secret length:", secret?.length);
-    console.log("[lastfm] sig string (no secret):", Object.keys(sigParams).sort().map(k => k + sigParams[k]).join(""));
+    const sigStringNoSecret = Object.keys(sigParams).sort().map(k => k + sigParams[k]).join("");
+    console.log("[lastfm] sig string (no secret):", sigStringNoSecret);
     const sig = makeSignature(sigParams);
+    console.log("[lastfm] computed api_sig:", sig);
     const url = `http://ws.audioscrobbler.com/2.0/?method=auth.getSession&token=${token}&api_key=${apiKey}&api_sig=${sig}`;
 
     const result = await fetch(url);
