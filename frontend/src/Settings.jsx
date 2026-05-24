@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { DIRECTIONS, TYPE_PAIRINGS } from "./themes";
+import { API } from "./api";
 
 const DiscogsMark = ({ color }) => (
   <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
@@ -147,20 +148,51 @@ const ThemeGrid = ({ theme, feel, prefs, setPrefs }) => {
   );
 };
 
-const AccountRow = ({ name, connected, icon, theme, feel }) => (
+const AccountRow = ({ name, connected, icon, theme, feel, onConnect, connecting }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0" }}>
     <div style={{ flex: "0 0 auto" }}>{icon}</div>
     <div style={{ flex: 1 }}>
       <div style={{ fontFamily: "var(--ui)", fontSize: 13, color: theme.ink }}>{name}</div>
     </div>
-    <span style={{
-      fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.14em",
-      color: connected ? theme.accent : theme.inkMuted, textTransform: "uppercase",
-    }}>{connected ? "● Connected" : "○ Not connected"}</span>
+    {connected ? (
+      <span style={{
+        fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.14em",
+        color: theme.accent, textTransform: "uppercase",
+      }}>● Connected</span>
+    ) : (
+      <button onClick={onConnect} disabled={connecting} style={{
+        padding: "5px 12px", background: theme.accent, color: theme.accentInk,
+        border: 0, cursor: connecting ? "default" : "pointer",
+        fontFamily: "var(--mono)", fontSize: 9, letterSpacing: "0.12em",
+        textTransform: "uppercase", fontWeight: 600, opacity: connecting ? 0.6 : 1,
+      }}>{connecting ? "…" : "Connect"}</button>
+    )}
   </div>
 );
 
-export default function Settings({ theme, feel, typePair, t, prefs, setPrefs, onClose, onLogout, username, discogsOk, lastfmOk }) {
+export default function Settings({ theme, feel, typePair, t, prefs, setPrefs, onClose, onLogout, username, discogsOk, lastfmOk, token }) {
+  const [connectingDiscogs, setConnectingDiscogs] = useState(false);
+  const [connectingLastfm, setConnectingLastfm] = useState(false);
+
+  async function connectDiscogs() {
+    setConnectingDiscogs(true);
+    try {
+      const res = await fetch(API + "/discogs/fetchTokens", { headers: { Authorization: "Bearer " + token } });
+      const data = await res.json();
+      window.location.href = `https://discogs.com/oauth/authorize?oauth_token=${data.requestToken}`;
+    } catch { setConnectingDiscogs(false); }
+  }
+
+  async function connectLastfm() {
+    setConnectingLastfm(true);
+    try {
+      const res = await fetch(API + "/lastfm/startAuth", { headers: { Authorization: "Bearer " + token } });
+      const data = await res.json();
+      window.open(data.authUrl, "_blank");
+    } catch { }
+    setConnectingLastfm(false);
+  }
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -256,9 +288,11 @@ export default function Settings({ theme, feel, typePair, t, prefs, setPrefs, on
 
         <SettingsSection label={t.accounts} theme={theme}>
           <AccountRow name={t.discogs} connected={discogsOk} theme={theme} feel={feel}
-            icon={<DiscogsMark color={theme.accent} />} />
+            icon={<DiscogsMark color={theme.accent} />}
+            onConnect={connectDiscogs} connecting={connectingDiscogs} />
           <AccountRow name={t.lastfm} connected={lastfmOk} theme={theme} feel={feel}
-            icon={<LastfmMark color={theme.accent} />} />
+            icon={<LastfmMark color={theme.accent} />}
+            onConnect={connectLastfm} connecting={connectingLastfm} />
           <button onClick={onLogout} style={{
             marginTop: 14, width: "100%", padding: "11px 14px",
             background: "transparent", border: `0.5px solid ${theme.hairline}`,

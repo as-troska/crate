@@ -151,6 +151,7 @@ export default function App() {
           theme={theme} feel={feel} typePair={typePair} t={t}
           prefs={prefs} setPrefs={setPrefs}
           username={username}
+          token={token}
           discogsOk={discogsOk}
           lastfmOk={lastfmOk}
           onClose={() => setSettingsOpen(false)}
