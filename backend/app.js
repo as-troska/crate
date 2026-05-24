@@ -11,18 +11,17 @@ const app = express();
 const port = 3000;
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
-const isProd = process.env.NODE_ENV === "production";
 
-app.use(cors({ origin: isProd ? false : FRONTEND_URL }));
+app.use(cors({ origin: FRONTEND_URL }));
 app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
 });
 
-// Serve built frontend in production
-if (isProd) {
-    const publicDir = path.join(__dirname, "public");
+// Serve built frontend if public/ exists (production)
+const publicDir = path.join(__dirname, "public");
+if (require("fs").existsSync(publicDir)) {
     app.use(express.static(publicDir));
 }
 
@@ -60,9 +59,9 @@ app.post("/syncCollection", auth.authMiddleware, (req, res) => {
 });
 
 // SPA fallback — must be after all API routes
-if (isProd) {
+if (require("fs").existsSync(publicDir)) {
     app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "public", "index.html"));
+        res.sendFile(path.join(publicDir, "index.html"));
     });
 }
 
