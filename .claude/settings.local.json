@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 user.db \".tables\")",
+      "Bash(sqlite3 user.db \".schema\")",
+      "Bash(node --check auth.js)",
+      "Bash(node --check discogs.js)",
+      "Bash(node --check lastfm.js)",
+      "Bash(node --check cache.js)",
+      "Bash(node --check app.js)",
+      "Bash(node:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s \"http://localhost:3000/img?u=http://192.168.1.1/admin\" -w \" HTTP:%{http_code}\")",
+      "Bash(curl -s \"http://localhost:3000/img?u=https://evil.com/malware.jpg\" -w \" HTTP:%{http_code}\")",
+      "Bash(curl -s \"http://localhost:3000/img?u=https://i.discogs.com/legit.jpg\" -w \" HTTP:%{http_code}\")",
+      "Bash(grep -rn localhost:3000 /c/Programmering/scrobbler/frontend/src/ /c/Programmering/scrobbler/backend/*.js)",
+      "Bash(sqlite3 /c/Programmering/scrobbler/backend/user.db \"ALTER TABLE user_credentials ADD COLUMN last_synced_at INTEGER;\")",
+      "Bash(sqlite3 /c/Programmering/scrobbler/backend/user.db \".schema user_credentials\")",
+      "Read(//c/Users/trond/**)",
+      "Bash(/dev/null find:*)",
+      "Bash(unzip -o Crate.zip -d Crate_design)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl:*)",
+      "Bash(xargs -I{} taskkill /PID {} /F)",
+      "Bash(powershell -Command \"Stop-Process -Id \\(Get-NetTCPConnection -LocalPort 3000 -State Listen\\).OwningProcess -Force\")"
+    ]
+  }
+}

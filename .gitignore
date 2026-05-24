@@ -1,4 +1,6 @@
 .env
-\node_modules
+node_modules
 secrets.txt
 user.db
+frontend/dist
+data/

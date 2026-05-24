@@ -1,0 +1,17 @@
+services:
+  crate:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - crate-data:/data
+    env_file:
+      - backend/.env
+    environment:
+      - NODE_ENV=production
+      - BASE_URL=https://crate.sneaas.no
+      - DB_PATH=/data/user.db
+    restart: unless-stopped
+
+volumes:
+  crate-data:

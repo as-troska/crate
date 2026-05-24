@@ -1,0 +1,8 @@
+/* Crate — base styles. Most styling is done via inline styles in components.
+   Keyframe animations are in index.html <style>. */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+body { font-family: 'Inter Tight', 'Helvetica Neue', sans-serif; }
+input, button, select, textarea { font-family: inherit; }
+a { color: inherit; }

@@ -1,42 +1,134 @@
-const db = require("better-sqlite3")("user.db");
-const md5 = require("md5")
+const db = require("./db");
+const md5 = require("md5");
+const crypto = require("crypto");
+require("dotenv").config();
 
-require('dotenv').config()
+const apiKey = process.env.LASTFMAPIKEY;
+const secret = process.env.LASTFMSECRET;
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-const lastFmApiKey = process.env.LASTFMAPIKEY;
-const lastFmSecret = process.env.LASTFMSECRET;
+// ── OAuth state tokens ────────────────────────────────────────────────────────
+// Short-lived in-memory map: state → { userId, expires }
+// Prevents CSRF on the Last.fm callback: instead of exposing the userId in the
+// callback URL (which lets anyone overwrite anyone's session key), we issue a
+// random one-time token that only the legitimate user's browser holds.
+const pendingStates = new Map();
+const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-async function giveKey(req, res) {
-    res.send(lastFmApiKey)
-}
-
-async function checkAuthorized(req, res) {
-    const checkForSessionKey = db.prepare("SELECT * FROM app WHERE id = ?").get(1);
-    
-    if (checkForSessionKey.lastfmSessionKey != null) { 
-        res.send("authorized")
-    } else {
-        res.send("unauthorized")
+// Clean up expired states periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of pendingStates) {
+        if (now > v.expires) pendingStates.delete(k);
     }
+}, 60_000);
+
+// Authenticated: generate a state token and return the full Last.fm auth URL.
+function startAuth(req, res) {
+    const state = crypto.randomBytes(24).toString("hex");
+    pendingStates.set(state, { userId: req.userId, expires: Date.now() + STATE_TTL_MS });
+    const cb = encodeURIComponent(`${BASE_URL}/lastfm/auth?state=${state}`);
+    res.json({ authUrl: `http://www.last.fm/api/auth/?api_key=${apiKey}&cb=${cb}` });
 }
 
-async function getSession(req, res) {
-    const token = req.query.token;
+// OAuth callback — Last.fm redirects here with ?state=<token>&token=<lfm_token>
+async function authorize(req, res) {
+    const { state, token } = req.query;
 
-    const hashedSignature = md5("api_key" + lastFmApiKey + "methodauth.getSession" + "token" + token + lastFmSecret);
-    const urlString = "http://ws.audioscrobbler.com/2.0/" + "?method=auth.getSession&token=" + token + "&api_key=" + lastFmApiKey + "&api_sig=" + hashedSignature;
-    
-    const result = await fetch(urlString);
-    const data = await result.text();
+    const pending = pendingStates.get(state);
+    if (!pending || Date.now() > pending.expires) {
+        return res.status(400).send("Invalid or expired state token. Please try connecting again.");
+    }
+    pendingStates.delete(state); // one-time use
 
-    const key = data.split("<key>")[1].split("</key>")[0]
+    if (!token) return res.status(400).send("No Last.fm token provided");
 
-    const save = db.prepare("UPDATE app SET lastfmSessionKey = ? WHERE id = ?").run(key, 1)
+    const sig = md5("api_key" + apiKey + "methodauth.getSession" + "token" + token + secret);
+    const url = `http://ws.audioscrobbler.com/2.0/?method=auth.getSession&token=${token}&api_key=${apiKey}&api_sig=${sig}`;
 
-    res.redirect("http://localhost:5173/")
+    const result = await fetch(url);
+    const text = await result.text();
+
+    const key = text.split("<key>")[1]?.split("</key>")[0];
+    if (!key) return res.status(400).send("Failed to get Last.fm session key");
+
+    db.prepare("UPDATE user_credentials SET lastfm_session_key = ? WHERE user_id = ?")
+        .run(key, pending.userId);
+
+    res.redirect(FRONTEND_URL + "/");
 }
 
+function checkAuthorized(req, res) {
+    const creds = db.prepare("SELECT lastfm_session_key FROM user_credentials WHERE user_id = ?").get(req.userId);
+    res.json({ authorized: !!creds?.lastfm_session_key });
+}
 
-exports.giveKey = giveKey;
-exports.authorize = getSession;
-exports.checkLastFmAuthorized = checkAuthorized;
+// ── Scrobbling ────────────────────────────────────────────────────────────────
+function makeSignature(params) {
+    const str = Object.keys(params).sort().map(k => k + params[k]).join("") + secret;
+    return md5(str);
+}
+
+async function scrobble(req, res) {
+    const { tracks } = req.body;
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+        return res.status(400).json({ error: "tracks must be a non-empty array" });
+    }
+
+    const creds = db.prepare("SELECT lastfm_session_key FROM user_credentials WHERE user_id = ?").get(req.userId);
+    if (!creds?.lastfm_session_key) return res.status(401).json({ error: "Not authorized with Last.fm" });
+
+    const params = { api_key: apiKey, method: "track.scrobble", sk: creds.lastfm_session_key };
+    tracks.forEach((t, i) => {
+        params[`artist[${i}]`] = String(t.artist).slice(0, 500);
+        params[`track[${i}]`] = String(t.track).slice(0, 500);
+        params[`timestamp[${i}]`] = String(t.timestamp);
+        if (t.album) params[`album[${i}]`] = String(t.album).slice(0, 500);
+        if (t.duration) params[`duration[${i}]`] = String(t.duration);
+    });
+    params.api_sig = makeSignature(params);
+
+    const body = new URLSearchParams(params);
+    const result = await fetch("http://ws.audioscrobbler.com/2.0/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+    });
+
+    res.json({ ok: true, response: await result.text() });
+}
+
+async function updateNowPlaying(req, res) {
+    const { artist, track, album, duration } = req.body;
+    if (!artist || !track) return res.status(400).json({ error: "artist and track required" });
+
+    const creds = db.prepare("SELECT lastfm_session_key FROM user_credentials WHERE user_id = ?").get(req.userId);
+    if (!creds?.lastfm_session_key) return res.status(401).json({ error: "Not authorized with Last.fm" });
+
+    const params = {
+        api_key: apiKey,
+        method: "track.updateNowPlaying",
+        artist: String(artist).slice(0, 500),
+        track: String(track).slice(0, 500),
+        sk: creds.lastfm_session_key
+    };
+    if (album) params.album = String(album).slice(0, 500);
+    if (duration) params.duration = String(duration);
+    params.api_sig = makeSignature(params);
+
+    const body = new URLSearchParams(params);
+    const result = await fetch("http://ws.audioscrobbler.com/2.0/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+    });
+
+    res.json({ ok: true, response: await result.text() });
+}
+
+exports.startAuth = startAuth;
+exports.authorize = authorize;
+exports.checkAuthorized = checkAuthorized;
+exports.scrobble = scrobble;
+exports.updateNowPlaying = updateNowPlaying;
