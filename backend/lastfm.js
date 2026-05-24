@@ -51,7 +51,10 @@ async function authorize(req, res) {
     const text = await result.text();
 
     const key = text.split("<key>")[1]?.split("</key>")[0];
-    if (!key) return res.status(400).send("Failed to get Last.fm session key");
+    if (!key) {
+        console.error("Last.fm session key error:", text);
+        return res.status(400).send("Failed to get Last.fm session key: " + text);
+    }
 
     db.prepare("UPDATE user_credentials SET lastfm_session_key = ? WHERE user_id = ?")
         .run(key, pending.userId);
