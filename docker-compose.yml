@@ -2,7 +2,7 @@ services:
   crate:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3469:3000"
     volumes:
       - crate-data:/data
     env_file:
