@@ -44,7 +44,7 @@ async function authorize(req, res) {
 
     if (!token) return res.status(400).send("No Last.fm token provided");
 
-    const sig = md5("api_key" + apiKey + "methodauth.getSession" + "token" + token + secret);
+    const sig = makeSignature({ api_key: apiKey, method: "auth.getSession", token });
     const url = `http://ws.audioscrobbler.com/2.0/?method=auth.getSession&token=${token}&api_key=${apiKey}&api_sig=${sig}`;
 
     const result = await fetch(url);
