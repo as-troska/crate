@@ -10,6 +10,7 @@ services:
     environment:
       - NODE_ENV=production
       - BASE_URL=https://crate.sneaas.no
+      - FRONTEND_URL=https://crate.sneaas.no
       - DB_PATH=/data/user.db
     restart: unless-stopped
 

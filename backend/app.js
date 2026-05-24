@@ -15,6 +15,10 @@ const isProd = process.env.NODE_ENV === "production";
 
 app.use(cors({ origin: isProd ? false : FRONTEND_URL }));
 app.use(express.json({ limit: "100kb" }));
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+});
 
 // Serve built frontend in production
 if (isProd) {
